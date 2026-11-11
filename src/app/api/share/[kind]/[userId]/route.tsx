@@ -23,7 +23,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ kind: string; 
         <div style={{ display: 'flex', fontSize: 64, fontWeight: 800, color: dark ? '#F6B221' : '#1F2348' }}>Sprout</div>
         <div style={{ display: 'flex', fontSize: 92, fontWeight: 800, textAlign: 'center', color: dark ? '#FFFFFF' : '#12142B', lineHeight: 1.1 }}>{headline(kind as ShareKind, d)}</div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 760, height: 760, borderRadius: 999, background: dark ? 'rgba(255,214,90,.25)' : 'rgba(255,255,255,.55)' }}>
-          <img src={art} width={560} height={560} style={{ objectFit: 'contain' }} />
+          <img src={art} alt="" width={560} height={560} style={{ objectFit: 'contain' }} />
         </div>
         <div style={{ display: 'flex', fontSize: 52, fontWeight: 700, color: dark ? '#FFFFFF' : '#1F2348' }}>{d.name} · 🔥 {d.streak}</div>
         <div style={{ display: 'flex', fontSize: 40, color: dark ? '#D6ECFB' : '#3A4072' }}>Grow yours on Sprout · Nimiq Pay</div>

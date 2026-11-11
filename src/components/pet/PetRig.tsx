@@ -6,6 +6,7 @@ import { useEffect, useId, useState } from 'react'
 import type { StageId } from '@/lib/game/config'
 import type { Mood } from '@/lib/game/mood'
 import { usePageVisible } from './usePageVisible'
+import { useHydrated } from '@/lib/client/useHydrated'
 
 export type Cosmetics = { hat?: string | null; neck?: string | null; face?: string | null; effect?: string | null }
 export type PetPalette = { body: string; shade: string; light: string }
@@ -54,8 +55,7 @@ export function PetRig({ stage, mood, cosmetics = {}, palette = PALETTES.gold!, 
   const reduced = useReducedMotion()
   const visible = usePageVisible()
   // Loops start after mount so server HTML and the first client render always match.
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
+  const mounted = useHydrated()
   const live = mounted && animated && !reduced && visible && !silhouette
   const [blink, setBlink] = useState(false)
   const [giggle, setGiggle] = useState(false)

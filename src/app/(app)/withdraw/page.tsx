@@ -32,20 +32,31 @@ export default function WithdrawPage() {
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
-  const [lockedUntil, setLockedUntil] = useState(0)
-  useEffect(() => {
+  const [locked, setLocked] = useState(() => {
     try {
-      setLockedUntil(Number(sessionStorage.getItem(LOCK_KEY) ?? 0))
-    } catch {}
+      return Date.now() < Number(sessionStorage.getItem(LOCK_KEY) ?? 0)
+    } catch {
+      return false
+    }
+  })
+  useEffect(() => {
     const id = setInterval(() => refetch(), 15_000)
     return () => clearInterval(id)
   }, [refetch])
+  useEffect(() => {
+    if (!locked) return
+    let until = 0
+    try {
+      until = Number(sessionStorage.getItem(LOCK_KEY) ?? 0)
+    } catch {}
+    const tm = setTimeout(() => setLocked(false), Math.max(0, until - Date.now()))
+    return () => clearTimeout(tm)
+  }, [locked])
 
   if (!me) return null
   const staker = stakerFromMe(me)
   const block = me.currentBlock ?? 0
   const step = staker ? withdrawStep(staker, block) : null
-  const locked = Date.now() < lockedUntil
   const stepNo = step === 'deactivate' ? 1 : step === 'remove' ? 3 : 2
   const want = parseNim(input || '0') ?? 0n
   const plan = staker ? withdrawPlan(staker, want) : null
@@ -57,11 +68,10 @@ export default function WithdrawPage() {
     if (!r.ok) {
       setBusy(false)
       if (r.kind === 'unknown_outcome') {
-        const until = Date.now() + LOCK_MS
-        setLockedUntil(until)
         try {
-          sessionStorage.setItem(LOCK_KEY, String(until))
+          sessionStorage.setItem(LOCK_KEY, String(Date.now() + LOCK_MS))
         } catch {}
+        setLocked(true)
         return setMsg(t('feed.checking'))
       }
       return setMsg(r.kind === 'cancelled' ? t('feed.cancelled') : r.kind === 'unsupported' ? t('err.unsupported') : r.message)

@@ -1,7 +1,7 @@
 'use client'
 // S10 Treat sheet: a NIM payment with memo `sprout:t:<squadId>`, verified on chain before it shows.
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { api, pollUntil, type Me } from '@/lib/client/api'
 import { meKey } from '@/lib/client/hooks'
 import { getMode, walletFor } from '@/lib/client/session'
@@ -28,14 +28,16 @@ export function TreatSheet({ me }: { me: Me }) {
 
   const squad = useQuery({ queryKey: ['squad', target?.squadId], queryFn: () => api<{ squad: SquadDetail }>(`/api/squads/${target!.squadId}`), enabled: !!target })
   const friends = squad.data?.squad.members.filter((m) => !m.isMe) ?? []
-  useEffect(() => {
+  const [lastTarget, setLastTarget] = useState(target)
+  if (target !== lastTarget) {
+    setLastTarget(target)
     if (target) {
       setTo(target.toUserId ?? null)
       setPhase('idle')
       setMsg(null)
       setNote('')
     }
-  }, [target])
+  }
   const friend = friends.find((f) => f.userId === to)
   const busy = phase === 'approving' || phase === 'confirming'
 

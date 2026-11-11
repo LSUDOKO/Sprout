@@ -52,18 +52,23 @@ export function FeedSheet({ me }: { me: Me }) {
   const pools = useQuery({ queryKey: ['validators'], queryFn: () => api<{ pools: Pool[] }>('/api/validators'), enabled: open && planting, staleTime: 600_000 })
   const pool = useMemo(() => pools.data?.pools.find((p) => p.address === poolAddr) ?? pools.data?.pools.find((p) => p.recommended), [pools.data, poolAddr])
 
+  const [wasOpen, setWasOpen] = useState(false)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (open) {
+      setPhase(readChecking() ? 'checking' : 'idle')
+      setNote(null)
+      setChip(chips[0]!)
+    }
+  }
   useEffect(() => {
     if (!open) return
-    setPhase(readChecking() ? 'checking' : 'idle')
-    setNote(null)
-    setChip(chips[0]!)
     // Wallet balance check (feature-detected on the real host).
     walletFor(getMode())
       .getBalance(me.user.address)
       .then((r) => setWallet(r.ok && r.value !== null ? r.value : undefined))
       .catch(() => setWallet(undefined))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  }, [open, me.user.address])
 
   const amount = chip === 'custom' ? parseNim(custom) : nim(chip)
   const check = amount === null ? { ok: false as const, code: 'invalid_amount' as const, message: '' } : planting ? canCreateStaker(staker, amount, wallet) : canAddStake(staker, amount, wallet)

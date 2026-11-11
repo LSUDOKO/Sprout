@@ -13,28 +13,29 @@ import { burst } from './confetti'
 import { shareCard } from './share'
 
 export function Evolution({ me }: { me: Me }) {
-  const t = useT()
   const evo = useUi((s) => s.evolution)
+  // A new key per evolution resets the sequence state.
+  return evo ? <EvolutionSequence key={evo.to} me={me} evo={evo} /> : null
+}
+
+function EvolutionSequence({ me, evo }: { me: Me; evo: { to: StageId } }) {
+  const t = useT()
   const close = useUi((s) => s.evolve)
   const toast = useUi((s) => s.toast)
   const reduced = useReducedMotion()
-  const [phase, setPhase] = useState<'old' | 'flash' | 'new'>('old')
+  const [phase, setPhase] = useState<'old' | 'flash' | 'new'>(reduced ? 'new' : 'old')
   const [canSkip, setCanSkip] = useState(false)
 
   useEffect(() => {
-    if (!evo) return
-    if (reduced) return setPhase('new')
-    setPhase('old')
-    setCanSkip(false)
+    if (reduced) return
     navigator.vibrate?.([40, 60, 40])
     const a = setTimeout(() => setPhase('flash'), 600)
     const b = setTimeout(() => setPhase('new'), 1600)
     const c = setTimeout(() => burst(['#F6B221', '#5BC26A', '#FFE58A']), 2000)
     const d = setTimeout(() => setCanSkip(true), 1000)
     return () => [a, b, c, d].forEach(clearTimeout)
-  }, [evo, reduced])
+  }, [reduced])
 
-  if (!evo) return null
   const prev = (STAGE_IDS[Math.max(0, STAGE_IDS.indexOf(evo.to) - 1)] ?? 'seed') as StageId
   const stageName = t(`stage.${evo.to}`)
   const cos = { hat: me.pet?.hat, neck: me.pet?.neck, face: me.pet?.face }
