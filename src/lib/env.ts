@@ -17,7 +17,7 @@ const schema = z.object({
   NIMIQ_RPC_URL_FALLBACK: optional,
   NIMIQ_RPC_AUTH: optional,
   NIMIQ_STAKING_CONTRACT: z.string().default('NQ77 0000 0000 0000 0000 0000 0000 0000 0001'),
-  VALIDATORS_API_URL: z.string().default('https://validators-api-mainnet.pages.dev/api/v1/validators'),
+  VALIDATORS_API_URL: z.string().default('https://validators-api-main.je-cf9.workers.dev/api/v1/validators'),
   PRICE_API_URL: optional,
   DEMO_ENABLED: z
     .string()

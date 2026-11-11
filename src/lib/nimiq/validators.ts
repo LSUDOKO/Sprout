@@ -28,7 +28,7 @@ export function adaptValidator(v: RawValidator): Pool | null {
   const scoreObj = v.score as Record<string, unknown> | number | undefined
   const score = typeof scoreObj === 'object' && scoreObj ? num(scoreObj.total) : num(scoreObj)
   let fee = num(v.fee)
-  if (fee !== null && fee <= 1) fee = fee * 100 // API may return a fraction
+  if (fee !== null && fee <= 1) fee = Math.round(fee * 10000) / 100 // API returns a fraction (0.0333 → 3.33%)
   const status = (str(v.status) ?? str(v.state) ?? 'active').toLowerCase()
   return {
     address,
@@ -37,7 +37,7 @@ export function adaptValidator(v: RawValidator): Pool | null {
     feePct: fee,
     payout,
     score,
-    active: !/(inactive|jailed|retired|deleted)/.test(status) && v.isActive !== false,
+    active: !/(inactive|jailed|retired|deleted)/.test(status) && v.isActive !== false && v.isListed !== false,
     recommended: false,
   }
 }
@@ -69,7 +69,8 @@ const TTL = 10 * 60_000
 
 export async function getPools(): Promise<Pool[]> {
   if (cache && Date.now() - cache.at < TTL) return cache.pools
-  const res = await fetch(env.VALIDATORS_API_URL, { signal: AbortSignal.timeout(8000), next: { revalidate: 600 } })
+  // The list embeds base64 logos (~1 MB), too big for Next's data cache: cache it in memory instead.
+  const res = await fetch(env.VALIDATORS_API_URL, { signal: AbortSignal.timeout(15000), cache: 'no-store' })
   if (!res.ok) throw new Error(`Validators API HTTP ${res.status}`)
   const json = (await res.json()) as unknown
   const list = Array.isArray(json) ? json : ((json as { validators?: unknown[] }).validators ?? (json as { data?: unknown[] }).data ?? [])
