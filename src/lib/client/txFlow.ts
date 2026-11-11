@@ -7,7 +7,7 @@ import { ApiFail, api, pollUntil, sleep } from './api'
 export type TxPhase = 'idle' | 'approving' | 'confirming' | 'checking' | 'done' | 'cancelled' | 'invalid' | 'failed' | 'unsupported' | 'needs_link'
 
 const CHECK_KEY = 'sprout_checking'
-export type CheckingSave = { kind: 'plant' | 'feed'; valueLuna: string; sinceMs: number; saveId?: string }
+export type CheckingSave = { kind: 'plant' | 'feed'; valueLuna: string; sinceMs: number; saveId?: string; txHash?: string }
 
 export function readChecking(): CheckingSave | null {
   try {
@@ -72,9 +72,23 @@ export async function runSave(opts: {
     return { phase: map[res.kind], message: res.message }
   }
   onPhase('confirming')
-  // Register the hash before anything else, so a closed app can still resolve it later.
-  const { id } = await api<{ id: string }>('/api/saves', { body: { txHash: res.value, kind, valueLuna: valueLuna.toString() } })
-  const final = await pollSave(id, opts.signal)
+  // Persist the hash locally FIRST: if registering it fails (offline, 5xx), the lock stays and
+  // "Check again" registers the same hash later — the user is never offered a second payment.
+  const pending: CheckingSave = { kind, valueLuna: valueLuna.toString(), sinceMs, txHash: res.value }
+  writeChecking(pending)
+  const id = await registerHash(pending)
+  writeChecking({ ...pending, saveId: id })
+  return settle(await pollSave(id, opts.signal), id)
+}
+
+export async function registerHash(c: CheckingSave): Promise<string> {
+  const r = await api<{ id: string }>('/api/saves', { body: { txHash: c.txHash, kind: c.kind, valueLuna: c.valueLuna } })
+  return r.id
+}
+
+/** Map a terminal server status to an outcome. Every terminal status releases the local lock. */
+export function settle(final: SaveStatus, id: string): SaveOutcome {
+  writeChecking(null)
   if (final.status === 'confirmed') return { phase: 'done', result: final.result, saveId: id }
   if (final.status === 'needs_link') return { phase: 'needs_link', saveId: id }
   return { phase: 'failed', message: final.failReason ?? undefined, saveId: id }

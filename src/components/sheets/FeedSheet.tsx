@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, type Me } from '@/lib/client/api'
 import { meKey } from '@/lib/client/hooks'
 import { getMode, walletFor } from '@/lib/client/session'
-import { readChecking, recoverSave, pollSave, runSave, writeChecking, type TxPhase } from '@/lib/client/txFlow'
+import { readChecking, recoverSave, pollSave, registerHash, runSave, settle, writeChecking, type TxPhase } from '@/lib/client/txFlow'
 import { FEED_CHIPS } from '@/lib/game/config'
 import type { StageId } from '@/lib/game/config'
 import { canAddStake, canCreateStaker, type Staker } from '@/lib/nimiq/invariants'
@@ -37,6 +37,8 @@ export function FeedSheet({ me }: { me: Me }) {
 
   const staker = stakerFromMe(me)
   const planting = !staker
+  // Never decide "plant vs feed" or check invariants on stale or missing chain data.
+  const chainReady = me.user.isDemo || (me.chainOk && !me.stake?.stale)
   const chips = planting ? [100, 250, 500] : [...FEED_CHIPS]
   const [chip, setChip] = useState<number | 'custom'>(chips[0]!)
   const [custom, setCustom] = useState('')
@@ -101,7 +103,7 @@ export function FeedSheet({ me }: { me: Me }) {
   }
 
   async function save() {
-    if (!amount || !check.ok || busy || checking) return
+    if (!amount || !check.ok || busy || checking || !chainReady) return
     if (planting && !pool) return
     abort.current = new AbortController()
     setNote(null)
@@ -109,22 +111,33 @@ export function FeedSheet({ me }: { me: Me }) {
       const outcome = await runSave({ wallet: walletFor(getMode()), kind: planting ? 'plant' : 'feed', valueLuna: amount, delegation: pool?.address, onPhase: setPhase, signal: abort.current.signal })
       await done(outcome, amount)
     } catch (e) {
-      // The hash is registered server-side; the home screen keeps polling it.
-      setPhase('confirming')
+      // The hash is kept locally (or registered server-side): never offer a second payment.
+      setPhase(readChecking() ? 'checking' : 'confirming')
       toast(String((e as Error).message ?? e), 'error')
     }
   }
 
+  const [canRelease, setCanRelease] = useState(false)
   async function checkAgain() {
     const c = readChecking()
     if (!c) return setPhase('idle')
     setNote(null)
-    const id = c.saveId ?? (await recoverSave(c).catch(() => null))
-    if (!id) return setNote(t('feed.checking'))
+    setCanRelease(false)
+    let id = c.saveId
+    try {
+      if (!id && c.txHash) id = await registerHash(c)
+      if (!id) id = (await recoverSave(c)) ?? undefined
+    } catch {
+      id = undefined
+    }
+    if (!id) {
+      // Nothing on chain yet. Only after a real search may the user release the lock themselves.
+      setCanRelease(!c.txHash)
+      return setNote(t('feed.checking'))
+    }
     writeChecking({ ...c, saveId: id })
     setPhase('confirming')
-    const final = await pollSave(id)
-    await done(final.status === 'confirmed' ? { phase: 'done', result: final.result, saveId: id } : final.status === 'needs_link' ? { phase: 'needs_link' } : { phase: 'failed', message: final.failReason ?? undefined }, fromWire(c.valueLuna))
+    await done(settle(await pollSave(id), id), fromWire(c.valueLuna))
   }
 
   const label = amount ? formatNim(amount) : '0'
@@ -187,13 +200,32 @@ export function FeedSheet({ me }: { me: Me }) {
           {checking && !note && <p className="rounded-2xl bg-sky-soft px-4 py-3 text-sm font-semibold text-navy">{t('feed.checking')}</p>}
 
           {checking ? (
-            <Button variant="navy" className="w-full" onClick={checkAgain}>
-              {t('feed.checkAgain')}
-            </Button>
+            <>
+              <Button variant="navy" className="w-full" onClick={checkAgain}>
+                {t('feed.checkAgain')}
+              </Button>
+              {canRelease && (
+                <button
+                  type="button"
+                  className="press text-sm font-bold text-slate underline"
+                  onClick={() => {
+                    writeChecking(null)
+                    setCanRelease(false)
+                    setNote(null)
+                    setPhase('idle')
+                  }}
+                >
+                  {t('feed.release')}
+                </button>
+              )}
+            </>
           ) : (
-            <Button variant="gold" className="w-full" onClick={save} disabled={!check.ok || (planting && !pool)} loading={busy}>
+            <>
+            {!chainReady && <p className="rounded-2xl bg-sky-soft px-4 py-3 text-sm font-semibold text-navy">{t('common.chainDelayed')}</p>}
+            <Button variant="gold" className="w-full" onClick={save} disabled={!chainReady || !check.ok || (planting && !pool)} loading={busy}>
               {phase === 'approving' ? t('feed.waiting') : phase === 'confirming' ? t('feed.confirming') : t('feed.cta', { amount: label })}
             </Button>
+            </>
           )}
         </div>
       )}

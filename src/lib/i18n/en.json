@@ -109,6 +109,7 @@
   "feed.cancelled": "No problem — nothing was sent.",
   "feed.checking": "Checking… We couldn't tell if the save went through. We're looking it up on the chain — please don't send it again.",
   "feed.checkAgain": "Check again",
+  "feed.release": "I checked Nimiq Pay — nothing was sent",
   "feed.failed": "That save didn't go through: {reason}",
   "feed.wallet": "Wallet: {amount} NIM",
   "feed.minPlant": "100 NIM is the minimum to start earning",
