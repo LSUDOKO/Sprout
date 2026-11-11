@@ -132,4 +132,30 @@ describe('demo save flow', () => {
     const [forged] = await db.select().from(S.treats).where(eq(S.treats.id, 'forged'))
     expect(await verifyTreat(db, forged!, sender!, T0 + 3000)).not.toBe('confirmed')
   })
+
+  it('a "plant" claim on a pre-existing staker never unlocks proven earnings', async () => {
+    const u = await makeUser(db)
+    await seedDemo(db, u, T0)
+    // staker already existed before Sprout (500 NIM), then the user adds 100 NIM and claims "plant"
+    await db.insert(S.demoStakers).values({ address: u.primaryAddress, activeLuna: nim(500), delegation: DEMO_POOLS[0]!.address })
+    const h = await demoWallet(db, u.primaryAddress, T0, { method: 'sendStakeTransaction', value: nim(100).toString() })
+    const r = await verifySave(db, await registerSave(u.id, h, 'plant', nim(100), T0), u, T0 + 3000)
+    expect(r.status).toBe('confirmed')
+    const fu = await fresh(u.id)
+    expect(fu.stakerCreatedBySprout).toBe(false)
+    const me = await meSnapshot(db, fu, new DemoChain(db, T0 + 9000), [u.primaryAddress], T0 + 9000)
+    expect(me.stake?.earnedLuna).toBeNull()
+  })
+
+  it('staker read lag keeps a save pending, then confirms', async () => {
+    const u = await makeUser(db)
+    await seedDemo(db, u, T0)
+    const h = await demoWallet(db, u.primaryAddress, T0, { method: 'sendNewStakerTransaction', delegation: DEMO_POOLS[0]!.address, value: nim(200).toString() })
+    const snapshot = (await db.select().from(S.demoStakers).where(eq(S.demoStakers.address, u.primaryAddress)))[0]!
+    await db.delete(S.demoStakers).where(eq(S.demoStakers.address, u.primaryAddress)) // node hasn't caught up
+    const save = await registerSave(u.id, h, 'plant', nim(200), T0)
+    expect((await verifySave(db, save, u, T0 + 3000)).status).toBe('pending')
+    await db.insert(S.demoStakers).values(snapshot)
+    expect((await verifySave(db, save, u, T0 + 6000)).status).toBe('confirmed')
+  })
 })
