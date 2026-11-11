@@ -150,12 +150,13 @@ export async function recompute(db: Db, userId: string, now: number, opts: { sta
       }
     }
     if (!perfectSquadWeek) {
-      const [p] = await tx
-        .select({ n: sql<number>`count(*)::int` })
+      // Only perfect weeks the user was actually part of count.
+      const rows = await tx
+        .select({ weekKey: squadWeeks.weekKey, joinedAt: squadMembers.joinedAt })
         .from(squadWeeks)
         .innerJoin(squadMembers, eq(squadMembers.squadId, squadWeeks.squadId))
         .where(and(eq(squadMembers.userId, userId), eq(squadWeeks.perfect, true)))
-      perfectSquadWeek = Number(p?.n ?? 0) > 0
+      perfectSquadWeek = rows.some((r) => r.weekKey >= weekKey(r.joinedAt))
     }
 
     // 6) Badges (never removed).
