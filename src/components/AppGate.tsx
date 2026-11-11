@@ -90,7 +90,7 @@ export function AppGate({ children }: { children: ReactNode }) {
   return (
     <div className="mx-auto min-h-dvh max-w-[480px] pb-[calc(var(--safe-bottom)+96px)]">
       {d.user.isDemo && (
-        <div className="sticky top-0 z-30 bg-navy py-1 pt-[calc(var(--safe-top)+4px)] text-center text-xs font-bold tracking-wide text-gold" role="note">
+        <div className="bg-navy py-1 pt-[calc(var(--safe-top)+4px)] text-center text-xs font-bold tracking-wide text-gold" role="note">
           {t('common.demoBanner')}
         </div>
       )}

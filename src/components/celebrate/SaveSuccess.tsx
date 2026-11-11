@@ -41,7 +41,11 @@ export function SaveSuccess({ me }: { me: Me }) {
           </div>
           <div className="mb-6 flex flex-col items-center gap-2">
             <span className="rounded-2xl bg-white px-5 py-3 font-display text-2xl font-semibold shadow-[var(--shadow-card)]">
-              {c.weekJustKept ? t('success.weekKept', { n: c.streak }) : t('success.streak', { n: c.streak })}
+              {c.weekJustKept
+                ? t('success.weekKept', { n: c.streak })
+                : c.streak > 0
+                  ? t('success.streak', { n: c.streak })
+                  : `${t('home.weeklyGoal')}: ${formatNim(fromWire(me.week.savedLuna), 0)} / ${formatNim(fromWire(me.week.goalLuna), 0)} NIM`}
             </span>
             {c.sparks > 0 && <span className="rounded-full bg-gold-soft px-4 py-1 font-bold">✨ {t('success.sparks', { n: c.sparks })}</span>}
             {c.badges.length > 0 && (

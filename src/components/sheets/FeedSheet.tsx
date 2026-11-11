@@ -128,7 +128,7 @@ export function FeedSheet({ me }: { me: Me }) {
       onClose={() => !busy && setOpen(false)}
       dismissible={!busy}
       label={t(planting ? 'feed.plantTitle' : 'feed.title')}
-      peek={<PetRig stage={me.growth.stage as StageId} mood={busy ? 'hungry' : 'happy'} size={150} cosmetics={{ hat: me.pet?.hat, face: me.pet?.face, neck: me.pet?.neck }} />}
+      peek={<PetRig stage={me.growth.stage as StageId} mood={busy ? 'hungry' : 'happy'} size={190} cosmetics={{ hat: me.pet?.hat, face: me.pet?.face, neck: me.pet?.neck }} />}
     >
       {pickPool ? (
         <PoolPicker pools={pools.data?.pools ?? []} loading={pools.isLoading} error={pools.isError} selected={pool?.address} onPick={(a) => (setPoolAddr(a), setPickPool(false))} onBack={() => setPickPool(false)} />

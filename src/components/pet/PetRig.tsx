@@ -47,13 +47,16 @@ type Props = {
   silhouette?: boolean
 }
 
-const STAGE_SCALE: Record<StageId, number> = { seed: 0.7, sprout: 0.84, bloom: 0.93, grove: 1 }
+const STAGE_SCALE: Record<StageId, number> = { seed: 0.92, sprout: 0.9, bloom: 0.95, grove: 1 }
 
 export function PetRig({ stage, mood, cosmetics = {}, palette = PALETTES.gold!, scale = 1, size = 260, animated = true, onTap, onLongPress, className = '', title, silhouette }: Props) {
   const uid = useId().replace(/:/g, '')
   const reduced = useReducedMotion()
   const visible = usePageVisible()
-  const live = animated && !reduced && visible && !silhouette
+  // Loops start after mount so server HTML and the first client render always match.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  const live = mounted && animated && !reduced && visible && !silhouette
   const [blink, setBlink] = useState(false)
   const [giggle, setGiggle] = useState(false)
 
