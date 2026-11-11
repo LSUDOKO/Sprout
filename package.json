@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "description": "Sprout \u2014 save NIM, grow a pet. A Nimiq Pay Mini App.",
+  "description": "Sprout — save NIM, grow a pet. A Nimiq Pay Mini App.",
   "type": "module",
   "engines": {
     "node": ">=20.9"
@@ -43,6 +43,7 @@
     "zustand": "^5.1.0"
   },
   "devDependencies": {
+    "@nimiq/core": "^2.23.0",
     "@playwright/test": "^1.65.0",
     "@tailwindcss/postcss": "^4.3.5",
     "@types/canvas-confetti": "^1.9.0",
