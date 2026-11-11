@@ -64,8 +64,9 @@ async function rpcOnce<T>(url: string, method: Method, params: unknown[]): Promi
     cache: 'no-store',
   })
   if (!res.ok) throw new RpcError(`RPC HTTP ${res.status}`)
-  const json = (await res.json()) as { result?: { data?: T } | T; error?: { message?: string; code?: number } }
-  if (json.error) throw new RpcError(json.error.message ?? 'RPC error', json.error.code)
+  const json = (await res.json()) as { result?: { data?: T } | T; error?: { message?: string; code?: number; data?: unknown } }
+  // Albatross nodes put the useful detail in error.data ("No staker with address: …").
+  if (json.error) throw new RpcError(rpcErrorText(json.error), json.error.code)
   const r = json.result as { data?: T } | T | undefined
   return (r && typeof r === 'object' && 'data' in r ? r.data : r) as T
 }
@@ -82,6 +83,8 @@ export async function rpc<T>(method: Method, params: unknown[] = []): Promise<T>
     return rpcOnce<T>(env.NIMIQ_RPC_URL_FALLBACK, method, params)
   }
 }
+
+export const rpcErrorText = (e: { message?: string; data?: unknown }) => [e.message, typeof e.data === 'string' ? e.data : undefined].filter(Boolean).join(': ') || 'RPC error'
 
 /** Raw RPC transaction → ChainTx. Field names per nimiq.dev/rpc; adapt here if a node differs. */
 type RawTx = {
@@ -123,17 +126,23 @@ type RawStaker = {
   inactiveFrom?: number | null
   delegation?: string | null
 }
-export function adaptStaker(s: RawStaker): Staker {
+/**
+ * Nodes report `inactiveFrom` (the election block where the stake became inactive), not the release
+ * block. Inactive stake is released about one epoch later (docs/03 §5), so this is an estimate;
+ * if it is early, the wallet rejects the retire as INVALID_TRANSACTION and the UI says so.
+ */
+export function adaptStaker(s: RawStaker, epochLength = Number(process.env.NIMIQ_EPOCH_LENGTH ?? 43_200)): Staker {
+  const inactive = toLuna(s.inactiveBalance)
   return {
     activeLuna: toLuna(s.balance),
-    inactiveLuna: toLuna(s.inactiveBalance),
+    inactiveLuna: inactive,
     retiredLuna: toLuna(s.retiredBalance),
-    inactiveRelease: s.inactiveRelease ?? s.inactiveFrom ?? null,
+    inactiveRelease: s.inactiveRelease ?? (inactive > 0n && s.inactiveFrom != null ? s.inactiveFrom + epochLength : null),
     delegation: s.delegation ? (normalizeAddress(s.delegation) ?? s.delegation) : null,
   }
 }
 
-const isNotFound = (e: unknown) => e instanceof RpcError && /not\s*found|no\s*staker|does\s*not\s*exist/i.test(e.message)
+export const isNotFound = (e: unknown) => e instanceof RpcError && /not\s*found|no\s*staker|does\s*not\s*exist/i.test(e.message)
 
 export class RpcChain implements ChainReader {
   readonly kind = 'rpc' as const
