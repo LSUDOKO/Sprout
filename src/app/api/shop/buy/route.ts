@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { getDb } from '@/lib/db'
 import { inventory, sparksLedger } from '@/lib/db/schema'
 import { ApiError, body, handle, json, requireUser } from '@/lib/server/api'
@@ -13,6 +13,8 @@ export const POST = handle(async (req: Request) => {
   const { itemId } = await body(req, z.object({ itemId: z.string() }))
   const db = await getDb()
   const result = await db.transaction(async (tx) => {
+    // Serialize purchases per user so two parallel buys can't both spend the same Sparks.
+    await tx.execute(sql`select id from users where id = ${user.id} for update`)
     const owned = (await tx.select({ i: inventory.itemId }).from(inventory).where(eq(inventory.userId, user.id))).map((r) => r.i)
     const balance = await sparksBalance(tx, user.id)
     const c = canBuy(itemId, balance, owned)
