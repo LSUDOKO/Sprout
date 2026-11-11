@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "description": "Sprout — save NIM, grow a pet. A Nimiq Pay Mini App.",
+  "description": "Sprout \u2014 save NIM, grow a pet. A Nimiq Pay Mini App.",
   "type": "module",
   "engines": {
     "node": ">=20.9"
@@ -19,7 +19,8 @@
     "test:e2e": "playwright test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
-    "seed:demo": "tsx scripts/seed-demo.ts"
+    "seed:demo": "tsx scripts/seed-demo.ts",
+    "vercel-build": "npm run db:migrate && next build"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.3.16",
