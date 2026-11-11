@@ -6,7 +6,7 @@ import type { Db } from '../db'
 import { saves, squadMembers, treats, userAddresses, users, withdrawals } from '../db/schema'
 import { DemoChain, RpcChain, decodeData, sameAddress, stakerTotals, stakingContract, type ChainReader } from '../nimiq/chain'
 import { normalizeAddress } from '../nimiq/address'
-import { totalStake } from '../nimiq/invariants'
+import { MIN_STAKE, totalStake } from '../nimiq/invariants'
 import { weekKey } from '../game/streak'
 import { treatPlantedAward, treatSentAward } from '../game/sparks'
 import { award, recompute, type RecomputeResult } from './progress'
@@ -27,24 +27,36 @@ export async function linkedAddresses(db: Db, userId: string): Promise<string[]>
 type Outcome = 'pending' | 'confirmed' | 'failed' | 'needs_link'
 export type SaveRow = typeof saves.$inferSelect
 
+/** Failures that may be chain/RPC lag rather than a bad claim: a later poll may still confirm them. */
+export const RETRYABLE_FAILS = ['not_found', 'stake_not_found'] as const
+const isRetryable = (s: SaveRow) => s.status === 'failed' && (RETRYABLE_FAILS as readonly string[]).includes(s.failReason ?? '')
+const OPEN = ['pending', 'needs_link', 'failed'] as const
+
 async function fail(db: Db, saveId: string, reason: string): Promise<Outcome> {
   await db.update(saves).set({ status: 'failed', failReason: reason }).where(and(eq(saves.id, saveId), inArray(saves.status, ['pending', 'needs_link'])))
   return 'failed'
 }
 
+const parseResult = (s: SaveRow | undefined) => (s?.resultJson ? (JSON.parse(s.resultJson) as RecomputeResult) : undefined)
+
 /** Verify one save. Safe to call repeatedly (idempotent). */
 export async function verifySave(db: Db, save: SaveRow, user: User, now: number): Promise<{ status: Outcome; result?: RecomputeResult }> {
-  if (save.status === 'confirmed') return { status: 'confirmed', result: save.resultJson ? (JSON.parse(save.resultJson) as RecomputeResult) : undefined }
-  if (save.status === 'failed') return { status: 'failed' }
+  if (save.status === 'confirmed') {
+    if (save.resultJson) return { status: 'confirmed', result: parseResult(save) }
+    // Claimed earlier but the follow-up work didn't finish: finish it now (idempotent).
+    return { status: 'confirmed', result: await finalizeSave(db, save, user, now) }
+  }
+  if (save.status === 'failed' && !isRetryable(save)) return { status: 'failed' }
 
   const chain = chainFor(db, user, now)
   const tx = await chain.getTransaction(save.txHash)
   if (!tx) {
+    if (save.status === 'failed') return { status: 'failed' }
     if (now - save.createdAt.getTime() > NOT_FOUND_TIMEOUT_MS) return { status: await fail(db, save.id, 'not_found') }
     return { status: 'pending' }
   }
   if (tx.executed === false) return { status: await fail(db, save.id, 'execution_failed') }
-  if (tx.executed === null || tx.confirmations < MIN_CONFIRMATIONS) return { status: 'pending' }
+  if (tx.executed === null || tx.confirmations < MIN_CONFIRMATIONS) return { status: save.status === 'failed' ? 'failed' : 'pending' }
 
   const linked = await linkedAddresses(db, user.id)
   if (!linked.some((a) => sameAddress(a, tx.from))) {
@@ -55,43 +67,57 @@ export async function verifySave(db: Db, save: SaveRow, user: User, now: number)
   if (tx.value !== save.valueLuna) return { status: await fail(db, save.id, 'amount_mismatch') }
 
   const staker = await chain.getStaker(tx.from)
-  if (!staker || totalStake(staker) < tx.value) return { status: await fail(db, save.id, 'stake_not_found') }
+  if (!staker || totalStake(staker) < tx.value) {
+    // The staker read can lag the tx read (e.g. a fallback node): wait, fail only after the window.
+    if (save.status !== 'failed' && now - save.createdAt.getTime() > NOT_FOUND_TIMEOUT_MS) return { status: await fail(db, save.id, 'stake_not_found') }
+    return { status: save.status === 'failed' ? 'failed' : 'pending' }
+  }
+  // Read everything from the chain BEFORE claiming, so a chain error can't strand a claimed row.
+  const totals = await stakerTotals(chain, linked)
 
   const from = normalizeAddress(tx.from) ?? tx.from
   const wk = weekKey(chain.kind === 'demo' ? now : tx.timestamp || now)
 
-  // Claim the row first: only one concurrent verifier proceeds to recompute.
+  // Claim the row: only one concurrent verifier proceeds.
   const claimed = await db
     .update(saves)
-    .set({ status: 'confirmed', fromAddress: from, blockNumber: tx.blockNumber, weekKey: wk, confirmedAt: new Date(now) })
-    .where(and(eq(saves.id, save.id), inArray(saves.status, ['pending', 'needs_link'])))
-    .returning({ id: saves.id })
+    .set({ status: 'confirmed', failReason: null, fromAddress: from, blockNumber: tx.blockNumber, weekKey: wk, confirmedAt: new Date(now) })
+    .where(and(eq(saves.id, save.id), inArray(saves.status, [...OPEN])))
+    .returning()
   if (!claimed.length) {
     const [again] = await db.select().from(saves).where(eq(saves.id, save.id))
-    return { status: (again?.status as Outcome) ?? 'pending', result: again?.resultJson ? (JSON.parse(again.resultJson) as RecomputeResult) : undefined }
+    return { status: (again?.status as Outcome) ?? 'pending', result: parseResult(again) }
   }
 
   if (save.kind === 'plant' && !user.delegation) {
     const [{ n } = { n: 0 }] = await db.select({ n: sql<number>`count(*)::int` }).from(saves).where(and(eq(saves.userId, user.id), eq(saves.status, 'confirmed')))
+    // "kind" comes from the client, so prove from the chain that this tx created the staker:
+    // a pre-existing staker would hold at least 100 NIM on top of this tx's value.
+    const createdHere = Number(n) === 1 && totalStake(staker) - tx.value < MIN_STAKE
     await db
       .update(users)
-      .set({ delegation: staker.delegation, plantedAt: new Date(now), firstPlantedWeek: wk, stakerCreatedBySprout: Number(n) === 1 })
+      .set({ delegation: staker.delegation, plantedAt: new Date(now), firstPlantedWeek: wk, stakerCreatedBySprout: createdHere })
       .where(eq(users.id, user.id))
   } else if (!user.firstPlantedWeek) {
     await db.update(users).set({ firstPlantedWeek: wk, plantedAt: new Date(now), delegation: user.delegation ?? staker.delegation }).where(eq(users.id, user.id))
   }
 
-  if (save.kind === 'treat_plant') {
-    const [t] = await db.select().from(treats).where(eq(treats.plantedSaveId, save.id))
-    if (t) await award(db, user.id, treatPlantedAward(t.id))
-  }
+  return { status: 'confirmed', result: await finalizeSave(db, claimed[0]!, user, now, totals) }
+}
 
-  const totals = await stakerTotals(chain, linked)
+/** Idempotent follow-up of a confirmed save: awards, recompute, stored celebration diff. */
+async function finalizeSave(db: Db, save: SaveRow, user: User, now: number, totals?: Awaited<ReturnType<typeof stakerTotals>>): Promise<RecomputeResult> {
+  const linked = await linkedAddresses(db, user.id)
+  const t = totals ?? (await stakerTotals(chainFor(db, user, now), linked))
+  if (save.kind === 'treat_plant') {
+    const [tr] = await db.select().from(treats).where(eq(treats.plantedSaveId, save.id))
+    if (tr) await award(db, user.id, treatPlantedAward(tr.id))
+  }
   const [fresh] = await db.select().from(users).where(eq(users.id, user.id))
-  const earned = fresh ? await earnedFor(db, fresh, totals) : null
-  const result = await recompute(db, user.id, now, { stakeLuna: totalStake(totals), savedTxHash: save.kind === 'treat_plant' ? undefined : save.txHash, everEarned: earned !== null && earned > 0n })
+  const earned = fresh ? await earnedFor(db, fresh, t) : null
+  const result = await recompute(db, user.id, now, { stakeLuna: totalStake(t), savedTxHash: save.kind === 'treat_plant' ? undefined : save.txHash, everEarned: earned !== null && earned > 0n })
   await db.update(saves).set({ resultJson: JSON.stringify(result) }).where(eq(saves.id, save.id))
-  return { status: 'confirmed', result }
+  return result
 }
 
 export const treatMemo = (squadId: string) => `sprout:t:${squadId}`

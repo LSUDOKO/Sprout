@@ -133,7 +133,7 @@ export function adaptStaker(s: RawStaker): Staker {
   }
 }
 
-const isNotFound = (e: unknown) => e instanceof RpcError && /not\s*found|no\s*staker|unknown/i.test(e.message)
+const isNotFound = (e: unknown) => e instanceof RpcError && /not\s*found|no\s*staker|does\s*not\s*exist/i.test(e.message)
 
 export class RpcChain implements ChainReader {
   readonly kind = 'rpc' as const
