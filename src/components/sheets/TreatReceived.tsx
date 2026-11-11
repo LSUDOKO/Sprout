@@ -23,7 +23,7 @@ export function TreatReceived({ me }: { me: Me }) {
   const toast = useUi((s) => s.toast)
   const [busy, setBusy] = useState<'plant' | 'thanks' | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
-  const inbox = useQuery({ queryKey: ['inbox'], queryFn: () => api<{ treats: InboxTreat[] }>('/api/treats/inbox'), refetchInterval: me.unseenTreats > 0 ? false : 20_000 })
+  const inbox = useQuery({ queryKey: ['inbox'], queryFn: () => api<{ pending: number; treats: InboxTreat[] }>('/api/treats/inbox'), refetchInterval: (q) => ((q.state.data?.pending ?? 0) > 0 ? 2_500 : 20_000) })
   const treat = inbox.data?.treats.find((x) => !x.seen)
   const blocked = useUi((s) => !!s.celebration || !!s.evolution || s.feedOpen)
 

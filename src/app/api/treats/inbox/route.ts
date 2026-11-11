@@ -7,7 +7,11 @@ export const GET = handle(async () => {
   const { db, user } = await requireUser()
   // Treats only show once verified on chain; give pending ones a chance to confirm now.
   const pending = await db.select({ id: treats.id }).from(treats).where(and(eq(treats.toUser, user.id), eq(treats.status, 'pending')))
-  for (const p of pending) await verifyTreatById(db, p.id).catch((e) => console.error('[inbox verify]', e))
+  let stillPending = 0
+  for (const p of pending) {
+    const r = await verifyTreatById(db, p.id).catch((e) => (console.error('[inbox verify]', e), null))
+    if (!r || r.status === 'pending') stillPending++
+  }
   const rows = await db
     .select({ id: treats.id, valueLuna: treats.valueLuna, note: treats.note, at: treats.confirmedAt, seenAt: treats.seenAt, thanked: treats.thanked, plantedSaveId: treats.plantedSaveId, fromUser: treats.fromUser, fromName: pets.name, fromStage: pets.stage, squadId: treats.squadId })
     .from(treats)
@@ -15,5 +19,5 @@ export const GET = handle(async () => {
     .where(and(eq(treats.toUser, user.id), eq(treats.status, 'confirmed')))
     .orderBy(desc(treats.confirmedAt))
     .limit(50)
-  return json({ treats: rows.map((r) => ({ ...r, at: r.at?.getTime() ?? null, seen: !!r.seenAt, planted: !!r.plantedSaveId, fromName: r.fromName ?? 'A friend' })) })
+  return json({ pending: stillPending, treats: rows.map((r) => ({ ...r, at: r.at?.getTime() ?? null, seen: !!r.seenAt, planted: !!r.plantedSaveId, fromName: r.fromName ?? 'A friend' })) })
 })

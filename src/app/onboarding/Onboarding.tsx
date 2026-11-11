@@ -50,7 +50,7 @@ export function Onboarding() {
   ]
   const last = i === slides.length
   return (
-    <main className={`mx-auto flex min-h-dvh max-w-[480px] flex-col px-6 pt-[calc(var(--safe-top)+20px)] pb-[calc(var(--safe-bottom)+24px)] transition-colors duration-500 ${BG[i]}`}>
+    <main className={`mx-auto flex min-h-dvh max-w-[480px] flex-col overflow-x-hidden px-6 pt-[calc(var(--safe-top)+20px)] pb-[calc(var(--safe-bottom)+24px)] transition-colors duration-500 ${BG[i]}`}>
       <div className="flex h-10 justify-end">
         {!last && (
           <button type="button" onClick={() => setI(slides.length)} className="press font-display font-semibold text-slate">
