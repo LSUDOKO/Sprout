@@ -58,6 +58,28 @@ streak, evolve Sprout from **Seed → Sprout → Bloom → Grove**, and save tog
   <img src="docs/screenshots/withdraw.png" width="200" alt="Withdraw in 3 steps" />
 </p>
 
+## 🧾 Proof: real transactions verified by Sprout
+
+Real staking transactions on **Nimiq testnet**, sent from a fresh wallet and **verified by Sprout's own server**
+(executed, sender = the signed-in wallet, recipient = staking contract, exact amount, stake increased) before
+they counted. Both appear on the testnet proof page: https://sprout-testnet.vercel.app/proof
+
+| Step | Amount | Transaction | Sprout verification |
+|---|---|---|---|
+| Plant — new staker (Siam Testnet Pool) | 500 NIM | `131f3524706e7b32987e99497d6eb2a592d3e43da983155118a99bcc247a3618` | ✅ confirmed |
+| Feed — add stake | 120 NIM | `b1338b81c47cacfabb5394aa5d1a7db595e8aac3ee92fbb64c8d2258c366c06b` | ✅ confirmed |
+
+The wallet's staker balance afterwards was exactly **620 NIM**, the sum of the two. Check it yourself:
+
+```bash
+curl -s https://rpc.testnet.nimiqwatch.com -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"getTransactionByHash","params":["131f3524706e7b32987e99497d6eb2a592d3e43da983155118a99bcc247a3618"]}'
+```
+
+These were sent with [`scripts/testnet-proof.mjs`](scripts/testnet-proof.mjs), a script wallet built on the official
+`@nimiq/core` that signs in to Sprout with the same signed-message format as Nimiq Pay and then submits the same
+staking transactions. Mainnet saves made inside Nimiq Pay appear on https://sprout-three-neon.vercel.app/proof.
+
 ## 🌱 How it works
 
 1. **Open Sprout in Nimiq Pay** and tap **Connect**. You sign a one-time message (no transaction, no fee); the

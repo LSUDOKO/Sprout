@@ -29,3 +29,4 @@ test-results/
 *.log
 .vercel
 submission/
+.testnet-proof-key
