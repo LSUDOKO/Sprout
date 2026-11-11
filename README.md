@@ -22,6 +22,17 @@ Keep a weekly streak, evolve Sprout from **Seed → Sprout → Bloom → Grove**
   <img src="docs/screenshots/withdraw.png" width="190" alt="Withdraw" />
 </p>
 
+## Live
+
+| | |
+|---|---|
+| **Mainnet** (real NIM) | https://sprout-three-neon.vercel.app — Nimiq Pay → Mini Apps → Custom URL |
+| **Testnet** (free test NIM) | https://sprout-testnet.vercel.app — switch Nimiq Pay to testnet first |
+| **Demo** (any browser) | https://sprout-three-neon.vercel.app/demo |
+| **Proof of real saves** | https://sprout-three-neon.vercel.app/proof |
+
+Deployment details: `docs/DEPLOY.md` · recording guide: `docs/VIDEO.md`.
+
 ## Try it
 
 - **Any browser:** open `/demo`. It runs the full app with a mock wallet and a fake chain, clearly labeled
@@ -131,9 +142,10 @@ CI runs all of the above on every push (`.github/workflows/ci.yml`).
 ### What is and isn't verified yet
 
 Verified here: everything in demo mode end to end, all unit/integration tests, production build.
-**Not yet verified:** real Nimiq Pay on a phone, mainnet RPC field names and the validators API shape. Those
-paths are implemented to spec behind env/config and adapters (`src/lib/nimiq/chain.ts`,
-`src/lib/nimiq/validators.ts`); the on-device checklist lives in `TESTLOG.md`.
+Verified against the live network: mainnet and testnet RPC responses (transactions, stakers, not-found errors),
+the staking contract address, the validators API, and the address/signature code against the official
+`@nimiq/core` library. Both deployments pass the Playwright demo flows.
+**Not yet verified:** signing and paying inside Nimiq Pay on a phone — run the checklist in `TESTLOG.md`.
 
 ## Project layout
 
