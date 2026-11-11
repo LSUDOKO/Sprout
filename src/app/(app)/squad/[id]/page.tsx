@@ -20,6 +20,7 @@ export default function SquadPage() {
   const qc = useQueryClient()
   const openTreat = useUi((s) => s.openTreat)
   const [invite, setInvite] = useState(false)
+  const [editing, setEditing] = useState(false)
   const q = useQuery({ queryKey: ['squad', id], queryFn: () => api<{ squad: SquadDetail }>(`/api/squads/${id}`), refetchInterval: 30_000 })
   const s = q.data?.squad
   const me = s?.members.find((m) => m.isMe)
@@ -51,9 +52,14 @@ export default function SquadPage() {
             </p>
           </Card>
 
-          <Card>
+          <Card className="relative">
             <h2 className="text-center text-[26px] font-semibold">{t('squad.weeklySavers')}</h2>
             <p className="text-center text-slate">{t('squad.savedThisWeek')}</p>
+            {isAdmin && s.members.length > 1 && (
+              <button type="button" onClick={() => setEditing(!editing)} className="press absolute top-5 right-5 text-sm font-bold text-navy underline">
+                {editing ? t('common.done') : '✏️'}
+              </button>
+            )}
             <ul className="mt-3 flex flex-col gap-2">
               {s.members.map((m) => (
                 <li key={m.userId} className="flex items-center gap-3">
@@ -72,7 +78,7 @@ export default function SquadPage() {
                     {m.keptThisWeek ? <span className="flex h-5 w-5 items-center justify-center rounded-full bg-leaf text-xs text-white">✓</span> : '🕒'}
                     {m.keptThisWeek ? t('squad.saved') : t('squad.waiting')}
                   </span>
-                  {isAdmin && !m.isMe && (
+                  {isAdmin && editing && !m.isMe && (
                     <button type="button" onClick={() => remove(m.userId)} className="press text-xs text-slate underline" aria-label={`${t('squad.remove')} ${m.name}`}>
                       {t('squad.remove')}
                     </button>
