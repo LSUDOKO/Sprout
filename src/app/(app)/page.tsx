@@ -45,7 +45,7 @@ export default function HomePage() {
   return (
     <main>
       {/* Scene */}
-      <section className="relative overflow-hidden rounded-b-[40px] pt-[var(--safe-top)]" style={{ minHeight: 470 }}>
+      <section className="relative overflow-hidden rounded-b-[40px] pt-[var(--safe-top)]" style={{ minHeight: 400 }}>
         <GardenScene stage={stage} background={me.pet.background} />
         <header className="relative z-10 flex items-start justify-between px-5 pt-4">
           <h1 className="text-[44px] font-bold leading-none text-navy">{t('app.name')}</h1>
@@ -59,10 +59,10 @@ export default function HomePage() {
             </Link>
           </div>
         </header>
-        <div className="relative z-10 mt-1 flex justify-center">
-          <Pet me={me} size={250} />
+        <div className="relative z-10 -mt-6 flex justify-center">
+          <Pet me={me} size={215} />
         </div>
-        <div className="relative z-10 mx-auto -mt-1 w-[84%] pb-6 text-center">
+        <div className="relative z-10 mx-auto -mt-3 w-[84%] pb-6 text-center">
           <p className="font-display text-[30px] font-bold text-ink drop-shadow-[0_2px_0_rgba(255,255,255,.7)]">{t('home.planted', { name: me.pet.name, stage: t(`stage.${stage}`) })}</p>
           <div className="relative mt-2">
             <ProgressBar value={g.progress} label={progressLabel} className="h-4 border-[2.5px] border-ink/80 bg-white/90" />

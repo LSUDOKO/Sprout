@@ -28,7 +28,7 @@ export function Pet({ me, size = 250, bubble = true }: { me: Me; size?: number; 
   const key = `mood.${mood}.${line % LINES[mood]}` as TKey
   const pet = me.pet!
   return (
-    <div className="relative flex flex-col items-center">
+    <div className="relative flex flex-col items-center pt-2">
       <AnimatePresence mode="wait">
         {bubble && (
           <motion.div
@@ -36,11 +36,11 @@ export function Pet({ me, size = 250, bubble = true }: { me: Me; size?: number; 
             initial={{ opacity: 0, y: 6, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4 }}
-            className="relative z-10 mb-1 max-w-[230px] rounded-2xl border-[2.5px] border-ink bg-white px-3.5 py-2 text-center font-display text-[15px] font-semibold leading-tight text-ink"
+            className="absolute top-0 right-[60%] z-10 w-max max-w-[170px] rounded-2xl border-[2.5px] border-ink bg-white px-3 py-1.5 text-center font-display text-[14px] font-semibold leading-tight text-ink"
             aria-live="polite"
           >
             {t(key)}
-            <span className="absolute -bottom-[9px] left-1/2 h-4 w-4 -translate-x-1/2 rotate-45 border-r-[2.5px] border-b-[2.5px] border-ink bg-white" />
+            <span className="absolute -bottom-[8px] right-5 h-3.5 w-3.5 rotate-45 border-r-[2.5px] border-b-[2.5px] border-ink bg-white" />
           </motion.div>
         )}
       </AnimatePresence>

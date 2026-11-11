@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, type ReactNode } from 'react'
 
-export function Sheet({ open, onClose, children, label, peek, dismissible = true }: { open: boolean; onClose: () => void; children: ReactNode; label: string; peek?: ReactNode; dismissible?: boolean }) {
+export function Sheet({ open, onClose, children, label, peek, dismissible = true, floating }: { open: boolean; onClose: () => void; children: ReactNode; label: string; peek?: ReactNode; dismissible?: boolean; floating?: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
@@ -33,10 +33,10 @@ export function Sheet({ open, onClose, children, label, peek, dismissible = true
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', stiffness: 380, damping: 36 }}
-            className="relative w-full max-w-[480px] outline-none"
+            className={`relative w-full max-w-[480px] outline-none ${floating ? 'px-3 pb-[calc(var(--safe-bottom)+12px)]' : ''}`}
           >
-            {peek && <div className="pointer-events-none relative z-10 -mb-6 flex justify-center">{peek}</div>}
-            <div className="max-h-[88dvh] overflow-y-auto rounded-t-[32px] bg-white px-5 pt-6 pb-[calc(var(--safe-bottom)+20px)] shadow-[0_-10px_40px_-10px_rgb(31_35_72/0.35)]">{children}</div>
+            {peek && <div className="pointer-events-none relative z-0 -mb-20 flex justify-center">{peek}</div>}
+            <div className={`relative z-10 max-h-[88dvh] overflow-y-auto bg-white px-5 pt-6 shadow-[0_-10px_40px_-10px_rgb(31_35_72/0.35)] ${floating ? 'rounded-[32px] pb-6' : 'rounded-t-[32px] pb-[calc(var(--safe-bottom)+20px)]'}`}>{children}</div>
           </motion.div>
         </div>
       )}

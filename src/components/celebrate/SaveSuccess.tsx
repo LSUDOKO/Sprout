@@ -30,6 +30,16 @@ export function SaveSuccess({ me }: { me: Me }) {
     <AnimatePresence>
       {c && (
         <motion.div role="dialog" aria-modal="true" aria-label={title} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[70] mx-auto flex max-w-[480px] flex-col items-center overflow-hidden bg-gradient-to-b from-sky-soft via-[#e9f4fb] to-cream px-6 pt-[calc(var(--safe-top)+48px)] pb-[calc(var(--safe-bottom)+24px)] text-center">
+          <ConfettiField />
+          <svg viewBox="0 0 390 120" preserveAspectRatio="none" className="pointer-events-none absolute inset-x-0 bottom-0 h-20 w-full" aria-hidden>
+            <path d="M0 50 C 90 10 300 10 390 50 V120 H0 Z" fill="#CDE8A0" stroke="#1B1B30" strokeWidth="2.5" />
+            {[[30, 70, '#F49AB8'], [70, 92, '#FFFFFF'], [330, 72, '#F49AB8'], [360, 96, '#A8B7F5']].map(([x, y, c]) => (
+              <g key={`${x}`} transform={`translate(${x} ${y})`}>
+                {[0, 72, 144, 216, 288].map((a) => <circle key={a} cx={6 * Math.cos(((a as number) * Math.PI) / 180)} cy={6 * Math.sin(((a as number) * Math.PI) / 180)} r="4.5" fill={c as string} stroke="#1B1B30" strokeWidth="1.2" />)}
+                <circle r="3" fill="#F6B221" />
+              </g>
+            ))}
+          </svg>
           <motion.h2 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="text-[40px] font-bold leading-tight text-ink">
             {title}
           </motion.h2>
@@ -39,7 +49,7 @@ export function SaveSuccess({ me }: { me: Me }) {
           <div className="relative my-auto">
             <PetRig stage={me.growth.stage as StageId} mood="celebrating" size={270} scale={me.growth.scale} cosmetics={{ hat: me.pet?.hat, neck: me.pet?.neck, face: me.pet?.face, effect: me.pet?.effect }} />
           </div>
-          <div className="mb-6 flex flex-col items-center gap-2">
+          <div className="relative z-10 mb-6 flex flex-col items-center gap-2">
             <span className="rounded-2xl bg-white px-5 py-3 font-display text-2xl font-semibold shadow-[var(--shadow-card)]">
               {c.weekJustKept
                 ? t('success.weekKept', { n: c.streak })
@@ -54,12 +64,12 @@ export function SaveSuccess({ me }: { me: Me }) {
               </span>
             )}
           </div>
-          <Button variant="navy" className="w-full max-w-xs" onClick={() => close(null)} autoFocus>
+          <Button variant="navy" className="relative w-full max-w-xs" onClick={() => (close(null), window.scrollTo({ top: 0 }))} autoFocus>
             {t('success.back')}
           </Button>
           <button
             type="button"
-            className="press mt-3 font-display text-xl font-semibold text-ink"
+            className="press relative mt-3 font-display text-xl font-semibold text-ink"
             onClick={async () => {
               const r = await shareCard({ kind: c.streak >= 2 ? 'streak' : 'saved', userId: me.user.id, text: c.streak >= 2 ? t('share.streak', { n: c.streak }) : t('share.saved') })
               if (r === 'copied') toast(t('common.copied'), 'success')
@@ -70,5 +80,16 @@ export function SaveSuccess({ me }: { me: Me }) {
         </motion.div>
       )}
     </AnimatePresence>
+  )
+}
+
+/** Static confetti so the screen reads as a party even with reduced motion. */
+function ConfettiField() {
+  const colors = ['#F6B221', '#5BC26A', '#8EC9FF', '#F49AB8', '#B48AE0', '#FBA36F']
+  const bits = Array.from({ length: 34 }, (_, i) => ({ x: (i * 67) % 390, y: (i * 131) % 520, r: (i * 47) % 180, c: colors[i % colors.length] }))
+  return (
+    <svg viewBox="0 0 390 520" className="pointer-events-none absolute inset-x-0 top-0 h-[70%] w-full" aria-hidden>
+      {bits.map((b, i) => (i % 3 === 0 ? <circle key={i} cx={b.x} cy={b.y} r="3.5" fill={b.c} /> : <rect key={i} x={b.x} y={b.y} width="10" height="5" rx="2" fill={b.c} transform={`rotate(${b.r} ${b.x} ${b.y})`} />))}
+    </svg>
   )
 }
