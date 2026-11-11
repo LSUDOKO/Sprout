@@ -7,7 +7,7 @@ import { useT } from '@/lib/i18n'
 import { BackButton, ErrorState, Skeleton } from '@/components/ui/kit'
 
 type Proof = { rows: { petName: string; valueLuna: string; at: number | null; txHash: string; kind: string }[]; totals: { savers: number; saves: number; totalLuna: string } }
-const EXPLORER = process.env.NEXT_PUBLIC_EXPLORER_TX_URL ?? 'https://nimiq.watch/#{hash}'
+const EXPLORER = process.env.NEXT_PUBLIC_EXPLORER_TX_URL ?? 'https://chaintracer.app/tx/{hash}'
 
 export default function ProofPage() {
   const t = useT()
