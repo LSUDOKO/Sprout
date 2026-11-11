@@ -25,6 +25,8 @@ export const users = pgTable('users', {
   plantedAt: ts('planted_at'),
   /** True when Sprout created the staker, so deposits are fully known and earnings are provable. */
   stakerCreatedBySprout: boolean('staker_created_by_sprout').notNull().default(false),
+  /** Demo only: seeded friends belong to the demo visitor who created them. */
+  demoOwnerId: text('demo_owner_id'),
 })
 
 export const userAddresses = pgTable(

@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "demo_owner_id" text;
