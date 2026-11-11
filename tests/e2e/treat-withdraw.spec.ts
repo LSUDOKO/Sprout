@@ -1,0 +1,35 @@
+import { expect, test } from '@playwright/test'
+import { plant, startDemo } from './helpers'
+
+test('receive a treat → plant it', async ({ page }) => {
+  await startDemo(page, 'Nimbus')
+  await plant(page, '200')
+  await page.getByRole('button', { name: 'Back to garden' }).click()
+  await page.goto('/me')
+  await page.getByRole('button', { name: /Receive a treat/ }).click()
+  await page.goto('/')
+  await expect(page.getByText(/sent Sprout a treat!/)).toBeVisible({ timeout: 40_000 })
+  await page.getByRole('button', { name: /Plant it/ }).click()
+  await expect(page.getByRole('heading', { name: /Treat planted/ })).toBeVisible()
+  await page.getByRole('button', { name: 'Back to garden' }).click()
+  await expect(page.getByText('205 NIM').first()).toBeVisible()
+})
+
+test('withdraw in three steps follows the staking rules', async ({ page }) => {
+  await startDemo(page, 'Pip')
+  await plant(page, '300')
+  await page.getByRole('button', { name: 'Back to garden' }).click()
+  await page.goto('/withdraw')
+  await page.getByLabel('Amount').fill('250')
+  await expect(page.getByText(/withdraws everything \(300 NIM\)/)).toBeVisible()
+  await page.getByRole('button', { name: 'Stop earning' }).click()
+  await expect(page.getByText(/Unlocks in about/)).toBeVisible({ timeout: 40_000 })
+  await expect(page.getByRole('button', { name: /Unlock 300 NIM/ })).toBeDisabled()
+  await page.goto('/me')
+  await page.getByRole('button', { name: /Fast-forward 1 week/ }).click()
+  await expect(page.getByText('A week went by…')).toBeVisible()
+  await page.goto('/withdraw')
+  await page.getByRole('button', { name: /Unlock 300 NIM/ }).click()
+  await page.getByRole('button', { name: /Send 300 NIM to wallet/ }).click({ timeout: 40_000 })
+  await expect(page.getByText('Nothing staked yet')).toBeVisible({ timeout: 40_000 })
+})
