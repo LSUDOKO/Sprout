@@ -15,7 +15,23 @@ import { stakerFromMe } from '@/components/sheets/FeedSheet'
 import { BackButton, Button, Card } from '@/components/ui/kit'
 
 const LOCK_KEY = 'sprout_wd_checking'
-const LOCK_MS = 120_000
+/** Unknown-outcome lock: held until the chain-derived step changes (or 30 min as a last resort). */
+const LOCK_MS = 30 * 60_000
+type Lock = { step: string; until: number }
+function readLock(): Lock | null {
+  try {
+    return JSON.parse(localStorage.getItem(LOCK_KEY) ?? 'null') as Lock | null
+  } catch {
+    return null
+  }
+}
+const lockFor = (step: string): Lock => ({ step, until: Date.now() + LOCK_MS })
+function writeLock(l: Lock | null) {
+  try {
+    if (l) localStorage.setItem(LOCK_KEY, JSON.stringify(l))
+    else localStorage.removeItem(LOCK_KEY)
+  } catch {}
+}
 
 function humanTime(seconds: number) {
   if (seconds <= 0) return '0m'
@@ -32,32 +48,25 @@ export default function WithdrawPage() {
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
-  const [locked, setLocked] = useState(() => {
-    try {
-      return Date.now() < Number(sessionStorage.getItem(LOCK_KEY) ?? 0)
-    } catch {
-      return false
-    }
-  })
+  const [lock, setLock] = useState<Lock | null>(readLock)
   useEffect(() => {
     const id = setInterval(() => refetch(), 15_000)
     return () => clearInterval(id)
   }, [refetch])
   useEffect(() => {
-    if (!locked) return
-    let until = 0
-    try {
-      until = Number(sessionStorage.getItem(LOCK_KEY) ?? 0)
-    } catch {}
-    const tm = setTimeout(() => setLocked(false), Math.max(0, until - Date.now()))
+    if (!lock) return
+    const tm = setTimeout(() => (writeLock(null), setLock(null)), Math.max(0, lock.until - Date.now()))
     return () => clearTimeout(tm)
-  }, [locked])
+  }, [lock])
 
   if (!me) return null
   const staker = stakerFromMe(me)
   const block = me.currentBlock ?? 0
   const step = staker ? withdrawStep(staker, block) : null
   const stepNo = step === 'deactivate' ? 1 : step === 'remove' ? 3 : 2
+  const chainReady = me.user.isDemo || (me.chainOk && !me.stake?.stale)
+  // The lock releases as soon as the chain shows the step moved on.
+  const locked = !chainReady || (!!lock && lock.step === step)
   const want = parseNim(input || '0') ?? 0n
   const plan = staker ? withdrawPlan(staker, want) : null
 
@@ -68,10 +77,9 @@ export default function WithdrawPage() {
     if (!r.ok) {
       setBusy(false)
       if (r.kind === 'unknown_outcome') {
-        try {
-          sessionStorage.setItem(LOCK_KEY, String(Date.now() + LOCK_MS))
-        } catch {}
-        setLocked(true)
+        const l = lockFor(step ?? '')
+        writeLock(l)
+        setLock(l)
         return setMsg(t('feed.checking'))
       }
       return setMsg(r.kind === 'cancelled' ? t('feed.cancelled') : r.kind === 'unsupported' ? t('err.unsupported') : r.message)
@@ -177,6 +185,8 @@ export default function WithdrawPage() {
             </Card>
           )}
 
+          {!chainReady && <p className="mt-4 rounded-2xl bg-sky-soft px-4 py-3 text-center text-sm font-semibold text-navy">{t('common.chainDelayed')}</p>}
+          {lock && lock.step === step && !msg && <p className="mt-4 rounded-2xl bg-sky-soft px-4 py-3 text-center text-sm font-semibold text-navy">{t('feed.checking')}</p>}
           {msg && <p className="mt-4 rounded-2xl bg-white px-4 py-3 text-center text-sm font-semibold shadow-[var(--shadow-card)]">{msg}</p>}
           <Link href="/" className="press mt-4 flex h-14 items-center justify-center rounded-full border-[3px] border-navy font-display text-xl font-semibold">
             {t('wd.keepSaving')}
