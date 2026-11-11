@@ -36,7 +36,7 @@ test('rewards grow Sprout overnight and a fast-forwarded week keeps the streak h
   await page.getByRole('button', { name: /Simulate rewards/ }).click()
   await expect(page.getByText('Rewards arrived in your stake')).toBeVisible()
   await page.goto('/')
-  await expect(page.getByText('+20 NIM')).toBeVisible()
+  await expect(page.getByText('+20 NIM', { exact: true })).toBeVisible()
   await page.goto('/me')
   await page.getByRole('button', { name: /Fast-forward 1 week/ }).click()
   await expect(page.getByText('A week went by…')).toBeVisible()
