@@ -1,7 +1,7 @@
 // On-chain verification (docs/03 §8). A tx hash is never success: a save counts only after
 // the chain shows it executed, from a linked address, to the staking contract, with the claimed value.
 import 'server-only'
-import { and, eq, inArray, sql } from 'drizzle-orm'
+import { and, eq, gte, inArray, sql } from 'drizzle-orm'
 import type { Db } from '../db'
 import { saves, squadMembers, treats, userAddresses, users, withdrawals } from '../db/schema'
 import { DemoChain, RpcChain, decodeData, sameAddress, stakerTotals, stakingContract, type ChainReader } from '../nimiq/chain'
@@ -158,7 +158,7 @@ export async function verifyTreat(db: Db, treat: typeof treats.$inferSelect, sen
     const [c] = await db
       .select({ n: sql<number>`count(*)::int` })
       .from(treats)
-      .where(and(eq(treats.fromUser, sender.id), eq(treats.status, 'confirmed'), sql`${treats.confirmedAt} >= ${dayStart}`, sql`${treats.id} <> ${treat.id}`))
+      .where(and(eq(treats.fromUser, sender.id), eq(treats.status, 'confirmed'), gte(treats.confirmedAt, dayStart), sql`${treats.id} <> ${treat.id}`))
     await award(db, sender.id, treatSentAward(Number(c?.n ?? 0), treat.id))
   }
   return 'confirmed'

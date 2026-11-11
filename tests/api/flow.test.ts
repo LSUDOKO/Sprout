@@ -158,4 +158,11 @@ describe('demo save flow', () => {
     await db.insert(S.demoStakers).values(snapshot)
     expect((await verifySave(db, save, u, T0 + 6000)).status).toBe('confirmed')
   })
+
+  it('rate limit counts and blocks on the real driver', async () => {
+    const { rateLimit } = await import('@/lib/server/rateLimit')
+    const key = `t:${id()}`
+    for (let i = 0; i < 3; i++) await rateLimit(db, key, 3)
+    await expect(rateLimit(db, key, 3)).rejects.toThrow(/Too many/)
+  })
 })
