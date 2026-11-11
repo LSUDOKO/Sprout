@@ -139,7 +139,9 @@ export async function recompute(db: Db, userId: string, now: number, opts: { sta
         if (!(await squadWeekPerfect(tx, squadId, wk))) continue
         perfectSquadWeek = true
         await tx.insert(squadWeeks).values({ squadId, weekKey: wk, perfect: true }).onConflictDoUpdate({ target: [squadWeeks.squadId, squadWeeks.weekKey], set: { perfect: true } })
-        const members = await tx.select({ userId: squadMembers.userId }).from(squadMembers).where(eq(squadMembers.squadId, squadId))
+        // Only members who were in the squad that week share the award.
+        const weekEnd = weekKeyToDate(wk).getTime() + 7 * 86_400_000
+        const members = (await tx.select({ userId: squadMembers.userId, joinedAt: squadMembers.joinedAt }).from(squadMembers).where(eq(squadMembers.squadId, squadId))).filter((m) => m.joinedAt.getTime() < weekEnd)
         for (const m of members) {
           const d = await award(tx, m.userId, squadPerfectAward(squadId, wk))
           if (m.userId === userId) sparksAwarded += d
